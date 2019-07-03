@@ -11,6 +11,7 @@ class App {
     this.server = express();
     this.middlewares();
     this.routes();
+    this.notFound();
     this.exceptionHandler();
   }
 
@@ -24,6 +25,12 @@ class App {
 
   routes() {
     this.server.use(routes);
+  }
+
+  notFound() {
+    this.server.use((req, res, next) => {
+      return res.status(404).json({ error: 'Not Found' });
+    });
   }
 
   exceptionHandler() {

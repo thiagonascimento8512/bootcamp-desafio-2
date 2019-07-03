@@ -108,6 +108,46 @@ class MeetupController {
 
     res.json(meetups);
   }
+
+  async delete(req, res) {
+    const meetup = await Meetup.findByPk(req.params.id, {
+      include: [
+        {
+          model: User,
+          as: 'organizer',
+          attributes: ['id', 'name'],
+        },
+        {
+          model: File,
+          as: 'banner',
+          attributes: ['id', 'path', 'url'],
+        },
+      ],
+    });
+
+    if (!meetup) {
+      return res.status(400).json({ error: 'This meetup does not exists' });
+    }
+
+    if (meetup.organizer.id !== req.userId) {
+      return res
+        .status(401)
+        .json({ error: 'You do not have permission to delete this meetup' });
+    }
+
+    if (isBefore(parse(meetup.date), new Date())) {
+      return res
+        .status(401)
+        .json({ error: 'You can not delete a past meetup' });
+    }
+
+    try {
+      meetup.destroy();
+      return res.json({ success: 'The meetup was been delete' });
+    } catch (err) {
+      return res.status(500).json({ error: 'An error occurred' });
+    }
+  }
 }
 
 export default new MeetupController();

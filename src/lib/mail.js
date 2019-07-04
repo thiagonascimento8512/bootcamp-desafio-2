@@ -10,15 +10,32 @@ class Mail {
     this.transporter = nodemailer.createTransport({
       ...mailConfig,
     });
+
+    this.configureTemplates();
   }
 
-  sendMail() {
+  configureTemplates() {
+    const viewPath = resolve(__dirname, '..', 'app', 'views', 'emails');
+
+    this.transporter.use(
+      'compile',
+      nodemailerhbs({
+        viewEngine: exphbs.create({
+          layoutsDir: resolve(viewPath, 'layouts'),
+          partialsDir: resolve(viewPath, 'partials'),
+          defaultLayout: 'default',
+          extname: '.hbs',
+        }),
+        viewPath,
+        extName: '.hbs',
+      })
+    );
+  }
+
+  sendMail(message) {
     return this.transporter.sendMail({
-      from: '"Fred Foo 👻" <foo@example.com>', // sender address
-      to: 'bar@example.com, baz@example.com', // list of receivers
-      subject: 'Hello ✔', // Subject line
-      text: 'Hello world?', // plain text body
-      html: '<b>Hello world?</b>', // html body
+      from: '"Thiago 👻" <foo@example.com>',
+      ...message,
     });
   }
 }

@@ -4,7 +4,7 @@ import { isBefore, parse, isSameHour } from 'date-fns';
 import Meetup from '../models/Meetup';
 import User from '../models/User';
 import Subscription from '../models/Subscription';
-import Mail from '../../lib/mail';
+import SubscriptionMail from '../jobs/SubscriptionMail';
 
 class SubscriptionController {
   async store(req, res) {
@@ -94,9 +94,15 @@ class SubscriptionController {
       user_id: req.userId,
     });
 
-    await Mail.sendMail();
+    SubscriptionMail.handle({
+      organizer: meetupExists.user_id,
+      meetup: meetupExists.title,
+      description: meetupExists.description,
+      user: userExists.name,
+      email: userExists.email,
+    });
 
-    return res.json({ subscription, msg: 'ok' });
+    return res.json({ subscription });
   }
 }
 

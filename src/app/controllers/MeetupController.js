@@ -1,5 +1,6 @@
 import * as Yup from 'yup';
-import { isBefore, parse } from 'date-fns';
+import { Op } from 'sequelize';
+import { isBefore, parse, startOfDay, endOfDay, format } from 'date-fns';
 
 import Meetup from '../models/Meetup';
 import File from '../models/File';
@@ -38,6 +39,7 @@ class MeetupController {
 
     const meetup = await Meetup.create({
       ...req.body,
+      date: dateParse,
       user_id,
     });
 
@@ -87,7 +89,7 @@ class MeetupController {
     return res.json(meetup);
   }
 
-  async index(req, res) {
+  async myMeetups(req, res) {
     const meetups = await Meetup.findAll({
       where: { user_id: req.userId },
       order: ['date'],
@@ -106,7 +108,42 @@ class MeetupController {
       ],
     });
 
-    res.json(meetups);
+    return res.json(meetups);
+  }
+
+  async index(req, res) {
+    const { date, page = 1 } = req.query;
+    const formatedDate = parse(date);
+
+    const schema = Yup.object().shape({
+      page: Yup.number(),
+      date: Yup.date().required(),
+    });
+
+    if (!(await schema.isValid(req.query))) {
+      return res.status(400).json({ error: 'Validation Fails' });
+    }
+
+    const meetups = await Meetup.findAll({
+      where: {
+        date: {
+          [Op.between]: [startOfDay(formatedDate), endOfDay(formatedDate)],
+        },
+      },
+      order: ['date'],
+      attributes: ['id', 'title', 'description', 'location', 'date', 'image'],
+      limit: 10,
+      offset: (page - 1) * 10,
+      include: [
+        {
+          model: User,
+          as: 'organizer',
+          attributes: ['name'],
+        },
+      ],
+    });
+
+    return res.json(meetups);
   }
 
   async delete(req, res) {

@@ -28,11 +28,10 @@ class UserController {
 
     const { id, name, email } = await User.create(req.body);
 
-    res.json({ id, name, email });
+    return res.json({ id, name, email });
   }
 
   async update(req, res) {
-    console.log(req.body);
     const schema = Yup.object().shape({
       name: Yup.string(),
       email: Yup.string()

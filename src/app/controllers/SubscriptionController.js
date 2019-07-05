@@ -1,5 +1,6 @@
 import * as Yup from 'yup';
 import { isBefore, parse, isSameHour } from 'date-fns';
+import { Op } from 'sequelize';
 
 import Meetup from '../models/Meetup';
 import User from '../models/User';
@@ -105,6 +106,27 @@ class SubscriptionController {
     });
 
     return res.json({ subscription });
+  }
+
+  async index(req, res) {
+    const subscriptions = await Subscription.findAll({
+      where: {
+        user_id: req.userId,
+      },
+      attributes: ['id'],
+      include: [
+        {
+          model: Meetup,
+          attributes: ['title', 'description', 'date'],
+          where: {
+            date: { [Op.gte]: new Date() }, // '2019-07-13T19:36:00-03:00'
+          },
+        },
+      ],
+      order: [[Meetup, 'date', 'ASC']],
+    });
+
+    return res.json(subscriptions);
   }
 }
 

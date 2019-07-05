@@ -4,7 +4,9 @@ import { isBefore, parse, isSameHour } from 'date-fns';
 import Meetup from '../models/Meetup';
 import User from '../models/User';
 import Subscription from '../models/Subscription';
+
 import SubscriptionMail from '../jobs/SubscriptionMail';
+import Queue from '../../lib/queue';
 
 class SubscriptionController {
   async store(req, res) {
@@ -94,7 +96,7 @@ class SubscriptionController {
       user_id: req.userId,
     });
 
-    SubscriptionMail.handle({
+    await Queue.add(SubscriptionMail.key, {
       organizer: meetupExists.user_id,
       meetup: meetupExists.title,
       description: meetupExists.description,

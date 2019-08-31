@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import cors from 'cors';
 import { resolve } from 'path';
 import multer from 'multer';
 
@@ -17,6 +18,7 @@ class App {
   }
 
   middlewares() {
+    this.server.use(cors());
     this.server.use(express.json());
     this.server.use(
       '/files',

@@ -5,6 +5,7 @@ import { isBefore, parse, startOfDay, endOfDay } from 'date-fns';
 import Meetup from '../models/Meetup';
 import File from '../models/File';
 import User from '../models/User';
+import Subscription from '../models/Subscription';
 
 class MeetupController {
   async store(req, res) {
@@ -112,17 +113,21 @@ class MeetupController {
   }
 
   async index(req, res) {
-    const { date, page = 1 } = req.query;
+    const { date } = req.query;
     const formatedDate = parse(date);
 
     const schema = Yup.object().shape({
-      page: Yup.number(),
       date: Yup.date().required(),
     });
 
     if (!(await schema.isValid(req.query))) {
       return res.status(400).json({ error: 'Validation Fails' });
     }
+
+    const meetupSubscription = await Subscription.findAll({
+      where: { user_id: req.userId },
+      attributes: ['id', 'meetup_id'],
+    });
 
     const meetups = await Meetup.findAll({
       where: {
@@ -131,19 +136,30 @@ class MeetupController {
         },
       },
       order: ['date'],
-      attributes: ['id', 'title', 'description', 'location', 'date', 'image'],
-      limit: 10,
-      offset: (page - 1) * 10,
+      attributes: ['id', 'title', 'description', 'location', 'date'],
       include: [
         {
           model: User,
           as: 'organizer',
           attributes: ['name'],
         },
+        {
+          model: File,
+          as: 'banner',
+          attributes: ['id', 'url', 'path'],
+        },
       ],
     });
 
-    return res.json(meetups);
+    // Cria uma nova propriedade para os meetups aos quais o
+    // usuário encontra-se inscrito
+    const newMeetups = meetups.map(m => {
+      const sb = meetupSubscription.find(n => n.meetup_id === m.id);
+      if (sb) return { ...m.dataValues, subscription: true };
+      return m.dataValues;
+    });
+
+    return res.json(newMeetups);
   }
 
   async delete(req, res) {

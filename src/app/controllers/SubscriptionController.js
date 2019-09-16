@@ -5,6 +5,7 @@ import { Op } from 'sequelize';
 import Meetup from '../models/Meetup';
 import User from '../models/User';
 import Subscription from '../models/Subscription';
+import File from '../models/File';
 
 import SubscriptionMail from '../jobs/SubscriptionMail';
 import Queue from '../../lib/queue';
@@ -82,7 +83,7 @@ class SubscriptionController {
     dateMeetups.forEach(meetup => {
       const dateTime = meetup.Meetup.date;
       if (isSameHour(dateTime, meetupExists.date)) {
-        hourConflits = `Meetups in same hour that ${meetup.Meetup.title} (id: ${meetup.Meetup.id})`;
+        hourConflits = `Este meetup acontece no mesmo horário que ${meetup.Meetup.title}`;
       }
     });
 
@@ -110,23 +111,87 @@ class SubscriptionController {
 
   async index(req, res) {
     const subscriptions = await Subscription.findAll({
-      where: {
-        user_id: req.userId,
-      },
+      where: { user_id: req.userId },
+      order: [[Meetup, 'date', 'ASC']],
       attributes: ['id'],
       include: [
         {
           model: Meetup,
-          attributes: ['title', 'description', 'date'],
+          attributes: ['title', 'description', 'date', 'location'],
           where: {
             date: { [Op.gte]: new Date() }, // '2019-07-13T19:36:00-03:00'
           },
+          include: [
+            {
+              model: User,
+              as: 'organizer',
+              attributes: ['id', 'name'],
+            },
+            {
+              model: File,
+              as: 'banner',
+              attributes: ['id', 'path', 'url'],
+            },
+          ],
         },
       ],
-      order: [[Meetup, 'date', 'ASC']],
     });
 
     return res.json(subscriptions);
+  }
+
+  async delete(req, res) {
+    const subscription = await Subscription.findByPk(
+      req.params.subscription_id,
+      {
+        include: [
+          {
+            model: Meetup,
+            attributes: ['title', 'description', 'date', 'location'],
+            where: {
+              date: { [Op.gte]: new Date() }, // '2019-07-13T19:36:00-03:00'
+            },
+            include: [
+              {
+                model: User,
+                as: 'organizer',
+                attributes: ['id', 'name'],
+              },
+              {
+                model: File,
+                as: 'banner',
+                attributes: ['id', 'path', 'url'],
+              },
+            ],
+          },
+        ],
+      }
+    );
+
+    if (!subscription) {
+      return res
+        .status(400)
+        .json({ error: 'This subscription does not exists' });
+    }
+
+    if (subscription.user_id !== req.userId) {
+      return res.status(401).json({
+        error: 'You do not have permission to cancel this subscription',
+      });
+    }
+
+    if (isBefore(parse(subscription.Meetup.date), new Date())) {
+      return res
+        .status(401)
+        .json({ error: 'You can not cancel subscription for a past meetup' });
+    }
+
+    try {
+      subscription.destroy();
+      return res.json({ success: 'The subscription was been cancel' });
+    } catch (err) {
+      return res.status(500).json({ error: 'An error occurred' });
+    }
   }
 }
 

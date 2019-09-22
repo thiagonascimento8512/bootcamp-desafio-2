@@ -15,7 +15,7 @@ const upload = multer(multerConfig);
 const routes = new Router();
 
 routes.get('/', (req, res) => {
-  res.json({ msg: 'Hello World' });
+  res.json({ msg: 'A API está ON' });
 });
 
 // Rotas sem Autenticação
